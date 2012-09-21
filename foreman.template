@@ -38,41 +38,6 @@
                          ],
       "ConstraintDescription" : "must be a valid availability zone."
     },
-
-    "SecurityGroupIds" : {
-      "Default" : "puppetmaster",
-      "Description" : "Name of security group",      "Type" : "String",
-      "MinLength": "1",
-      "MaxLength": "64",
-      "AllowedPattern" : "[-_ a-zA-Z0-9]*",
-      "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores."
-    }
-  },
-
-  "Mappings" : {
-    "AWSInstanceType2Arch" : {
-      "t1.micro"    : { "Arch" : "64" },
-      "m1.small"    : { "Arch" : "64" },
-      "m1.medium"   : { "Arch" : "64" },
-      "m1.large"    : { "Arch" : "64" },
-      "m1.xlarge"   : { "Arch" : "64" },
-      "m2.xlarge"   : { "Arch" : "64" },
-      "m2.2xlarge"  : { "Arch" : "64" },
-      "m2.4xlarge"  : { "Arch" : "64" },
-      "c1.medium"   : { "Arch" : "64" },
-      "c1.xlarge"   : { "Arch" : "64" }
-    },
-
-    "AWSRegionArch2AMI" : {
-      "us-east-1"      : { "64" : "ami-a29943cb" },
-      "us-west-1"      : { "64" : "ami-87712ac2" },
-      "us-west-2"      : { "64" : "ami-20800c10" },
-      "eu-west-1"      : { "64" : "ami-e1e8d395" },
-      "ap-southeast-1" : { "64" : "ami-a4ca8df6" },
-      "ap-northeast-1" : { "64" : "ami-60c77761" },
-      "sa-east-1"      : { "64" : "ami-8cd80691" }
-    },
-
     "DBName": {
       "Default": "foremandb",
       "Description" : "The Foreman database name",
@@ -113,7 +78,32 @@
       "MaxLength": "41",
       "AllowedPattern" : "[a-zA-Z0-9]*",
       "ConstraintDescription" : "must contain only alphanumeric characters."
-    }   
+    }
+  },
+
+  "Mappings" : {
+    "AWSInstanceType2Arch" : {
+      "t1.micro"    : { "Arch" : "64" },
+      "m1.small"    : { "Arch" : "64" },
+      "m1.medium"   : { "Arch" : "64" },
+      "m1.large"    : { "Arch" : "64" },
+      "m1.xlarge"   : { "Arch" : "64" },
+      "m2.xlarge"   : { "Arch" : "64" },
+      "m2.2xlarge"  : { "Arch" : "64" },
+      "m2.4xlarge"  : { "Arch" : "64" },
+      "c1.medium"   : { "Arch" : "64" },
+      "c1.xlarge"   : { "Arch" : "64" }
+    },
+
+    "AWSRegionArch2AMI" : {
+      "us-east-1"      : { "64" : "ami-a29943cb" },
+      "us-west-1"      : { "64" : "ami-87712ac2" },
+      "us-west-2"      : { "64" : "ami-20800c10" },
+      "eu-west-1"      : { "64" : "ami-e1e8d395" },
+      "ap-southeast-1" : { "64" : "ami-a4ca8df6" },
+      "ap-northeast-1" : { "64" : "ami-60c77761" },
+      "sa-east-1"      : { "64" : "ami-8cd80691" }
+    }
   },
     
   "Resources" : {
@@ -137,6 +127,39 @@
       "Type" : "AWS::IAM::AccessKey",
       "Properties" : {
         "UserName" : {"Ref": "CfnUser"}
+      }
+    },
+
+    "PuppetmasterNodesSg" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Foreman and puppetmaster Nodes",
+        "SecurityGroupIngress" : [
+          {
+            "IpProtocol" : "tcp",
+            "FromPort" : "80",
+            "ToPort" : "80",
+            "CidrIp" : "0.0.0.0/0"
+          },
+          {
+            "IpProtocol" : "tcp",
+            "FromPort" : "443",
+            "ToPort" : "443",
+            "CidrIp" : "0.0.0.0/0"
+          },
+          {
+            "IpProtocol" : "tcp",
+            "FromPort" : "8140",
+            "ToPort" : "8140",
+            "CidrIp" : "0.0.0.0/0"
+          },
+          {
+            "IpProtocol" : "tcp",
+            "FromPort" : "22",
+            "ToPort" : "22",
+            "CidrIp" : "0.0.0.0/0"
+          }
+        ]
       }
     },
 
@@ -171,12 +194,12 @@
         "InstanceType"   : { "Ref" : "InstanceType" },
         "KeyName"        : { "Ref" : "KeyName" },
         "AvailabilityZone" : { "Ref" : "AvailabilityZone" },
-        "SecurityGroupIds" : [ { "Ref" : "SecurityGroupIds" } ],
+        "SecurityGroupIds" : [ { "Ref" : "PuppetmasterNodesSg" } ],
         "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
           "#!/bin/bash -v\n",
           "function error_exit\n",
           "{\n",
-          "  cfn-signal -e 1 -r \"$1\" '", { "Ref" : "CassandraSeedServerWaitHandle" }, "'\n",
+          "  cfn-signal -e 1 -r \"$1\" '", { "Ref" : "ForemanServerWaitHandle" }, "'\n",
           "  exit 1\n",
           "}\n",
 
@@ -184,7 +207,7 @@
           "apt-get -y install python-setuptools\n",
           "easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-1.0-6.tar.gz\n",
           "cfn-init --region ", { "Ref" : "AWS::Region" },
-          "    -s ", { "Ref" : "AWS::StackName" }, " -r CassandraSeedServer ",
+          "    -s ", { "Ref" : "AWS::StackName" }, " -r ForemanServer ",
           "         --access-key ", { "Ref" : "HostKeys" },
           "         --secret-key ", {"Fn::GetAtt": ["HostKeys", "SecretAccessKey"]}, " || error_exit 'Failed to run cfn-init'\n",
 
@@ -285,7 +308,7 @@
 
     "PublicDNSName" : {
       "Description" : "Foreman server",
-      "Value" : { "Fn::GetAtt" : [ "CassandraSeedServer", "PublicDnsName" ] }
+      "Value" : { "Fn::GetAtt" : [ "ForemanServer", "PublicDnsName" ] }
     }
   }
 
