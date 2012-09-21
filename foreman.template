@@ -197,7 +197,7 @@
           "echo mysql-server-5.1 mysql-server/root_password_again seen true | debconf-set-selections\n",
           "echo mysql-server-5.1 mysql-server/start_on_boot boolean true | debconf-set-selections\n",
           "apt-get -y install mysql-server-5.1\n",
-          "apt-get -y install libmysqlclient-dev\n"
+          "apt-get -y install libmysqlclient-dev\n",
 
           "# Update Rubygems, and install puppet, rake, and ruby-libvrt\n",
           "gem install --no-rdoc --no-ri rubygems-update\n",
@@ -245,7 +245,7 @@
           "ServerName puppet.domain.com\n",
           "DocumentRoot /var/www/foreman/public\n",
           "\n",
-          "<Directory "/var/www/foreman/public">\n",
+          "<Directory \"/var/www/foreman/public\">\n",
           "      AllowOverride all\n",
           "      Order deny,allow\n",
           "      Allow from all\n",
